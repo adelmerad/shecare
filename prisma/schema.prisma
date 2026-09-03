@@ -130,3 +130,153 @@ model VitalReading {
 
   @@index([userId, recordedAt])
 }
+
+// ─── Wellness ────────────────────────────────────────────────────────────────
+
+enum SessionType {
+  MEDITATION
+  BREATHING
+  MUSIC
+}
+
+model JournalEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  feelings  String
+  gratitude String?
+  prompt    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model WellnessSession {
+  id          String      @id @default(cuid())
+  userId      String
+  type        SessionType
+  slug        String
+  durationMin Int
+  completedAt DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completedAt])
+}
+
+// ─── Community ───────────────────────────────────────────────────────────────
+
+enum PostCategory {
+  SUPPORT
+  QUESTION
+  VICTORY
+}
+
+model Post {
+  id        String       @id @default(cuid())
+  authorId  String
+  content   String
+  category  PostCategory
+  createdAt DateTime     @default(now())
+
+  author   User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  likes    PostLike[]
+
+  @@index([createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model PostLike {
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+}
+
+// ─── Consultations ───────────────────────────────────────────────────────────
+
+enum ConsultationMode {
+  VIDEO
+  PHONE
+  CHAT
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+model Specialist {
+  id              String             @id @default(cuid())
+  name            String
+  specialty       String
+  yearsExperience Int
+  priceDzd        Int
+  durationMin     Int
+  rating          Float
+  reviewCount     Int
+  modes           ConsultationMode[]
+  bio             String?
+
+  appointments Appointment[]
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  userId       String
+  specialistId String
+  mode         ConsultationMode
+  startsAt     DateTime
+  status       AppointmentStatus @default(SCHEDULED)
+  notes        String?
+  createdAt    DateTime          @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialist Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startsAt])
+  @@index([specialistId, startsAt])
+}
+
+// ─── Resources ───────────────────────────────────────────────────────────────
+
+enum ResourceType {
+  ARTICLE
+  VIDEO
+  PDF
+}
+
+model Resource {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  title       String
+  summary     String
+  description String
+  content     String
+  type        ResourceType
+  minutes     Int
+  url         String?
+  featured    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+
+  @@index([type])
+}
