@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Accounts ────────────────────────────────────────────────────────────────
+
+enum Role {
+  PATIENT
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  birthDate    DateTime?
+  location     String?
+  bio          String?
+  role         Role      @default(PATIENT)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  medical      MedicalProfile?
+  preferences  Preferences?
+  dailyLogs    DailyLog[]
+  symptoms     SymptomLog[]
+  vitals       VitalReading[]
+  journal      JournalEntry[]
+  sessions     WellnessSession[]
+  posts        Post[]
+  comments     Comment[]
+  likes        PostLike[]
+  appointments Appointment[]
+}
+
+model MedicalProfile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  diagnosis        String?
+  stage            String?
+  diagnosisDate    DateTime?
+  treatmentStart   DateTime?
+  currentTreatment String?
+  medications      String?
+  allergies        String?
+  emergencyContact String?
+  cyclesTotal      Int?
+  cyclesCompleted  Int?
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Preferences {
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  appointmentReminders Boolean @default(true)
+  medicationReminders  Boolean @default(true)
+  communityUpdates     Boolean @default(false)
+  wellnessReminders    Boolean @default(true)
+  profileVisible       Boolean @default(true)
+  shareProgress        Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Health tracking ─────────────────────────────────────────────────────────
+
+enum Mood {
+  GREAT
+  GOOD
+  OKAY
+  LOW
+  BAD
+}
+
+enum Severity {
+  NONE
+  MILD
+  MODERATE
+  SEVERE
+}
+
+model DailyLog {
+  id           String   @id @default(cuid())
+  userId       String
+  energy       Int // 1-10
+  mood         Mood
+  sleepHours   Float?
+  waterGlasses Int?
+  notes        String?
+  loggedAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedAt])
+}
+
+model SymptomLog {
+  id       String   @id @default(cuid())
+  userId   String
+  name     String
+  severity Severity
+  notes    String?
+  loggedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedAt])
+}
+
+model VitalReading {
+  id          String   @id @default(cuid())
+  userId      String
+  temperature Float?
+  heartRate   Int?
+  systolic    Int?
+  diastolic   Int?
+  recordedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+}
