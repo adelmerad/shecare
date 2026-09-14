@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Shield, Users, Heart } from "lucide-react"
 
@@ -15,12 +16,14 @@ export function HeroSection() {
             women battling breast cancer.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button size="lg" className="text-lg px-8">
-              Start Your Journey
-              <ArrowRight className="ml-2 h-5 w-5" />
+            <Button asChild size="lg" className="text-lg px-8">
+              <Link href="/register">
+                Start Your Journey
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
             </Button>
-            <Button variant="outline" size="lg" className="text-lg px-8 bg-transparent">
-              Learn More
+            <Button asChild variant="outline" size="lg" className="text-lg px-8 bg-transparent">
+              <Link href="#about">Learn More</Link>
             </Button>
           </div>
         </div>
