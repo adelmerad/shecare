@@ -1,15 +1,29 @@
 import { Navigation } from "@/components/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Activity, Heart, Thermometer, Droplets, Moon, Plus } from "lucide-react"
+import { Activity, Heart, Thermometer, Droplets, Moon, Gauge } from "lucide-react"
+import { db } from "@/lib/db"
+import { requireUserId } from "@/lib/session"
+import { MOOD_LABELS, startOfToday } from "@/lib/wellness"
+import { SEVERITY_LABELS, SEVERITY_VARIANT, dayAndTime } from "@/lib/format"
+import { DailyLogForm, DeleteButton, SymptomForm, VitalsForm } from "./forms"
 
-export default function HealthTrackerPage() {
+export const metadata = { title: "Health Tracker · SheCare" }
+
+const WATER_GOAL = 8
+
+export default async function HealthTrackerPage() {
+  const userId = await requireUserId()
+
+  const [today, symptoms, latestVitals, history] = await Promise.all([
+    db.dailyLog.findFirst({ where: { userId, loggedAt: { gte: startOfToday() } }, orderBy: { loggedAt: "desc" } }),
+    db.symptomLog.findMany({ where: { userId }, orderBy: { loggedAt: "desc" }, take: 10 }),
+    db.vitalReading.findFirst({ where: { userId }, orderBy: { recordedAt: "desc" } }),
+    db.dailyLog.findMany({ where: { userId }, orderBy: { loggedAt: "desc" }, take: 20 }),
+  ])
+
   return (
     <main className="min-h-screen bg-background">
       <Navigation />
@@ -29,7 +43,6 @@ export default function HealthTrackerPage() {
           </TabsList>
 
           <TabsContent value="today" className="space-y-6">
-            {/* Today's Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -37,8 +50,8 @@ export default function HealthTrackerPage() {
                   <Activity className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">7/10</div>
-                  <Progress value={70} className="mt-2" />
+                  <div className="text-2xl font-bold">{today ? `${today.energy}/10` : "—"}</div>
+                  <Progress value={today ? today.energy * 10 : 0} className="mt-2" />
                 </CardContent>
               </Card>
 
@@ -48,8 +61,8 @@ export default function HealthTrackerPage() {
                   <Heart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">Good</div>
-                  <p className="text-xs text-muted-foreground mt-2">Feeling positive</p>
+                  <div className="text-2xl font-bold">{today ? MOOD_LABELS[today.mood] : "—"}</div>
+                  <p className="text-xs text-muted-foreground mt-2">{today ? "Logged today" : "Not logged yet"}</p>
                 </CardContent>
               </Card>
 
@@ -59,8 +72,10 @@ export default function HealthTrackerPage() {
                   <Moon className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">7.5h</div>
-                  <p className="text-xs text-muted-foreground mt-2">Quality sleep</p>
+                  <div className="text-2xl font-bold">{today?.sleepHours != null ? `${today.sleepHours}h` : "—"}</div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {today?.sleepHours != null ? (today.sleepHours >= 7 ? "Quality sleep" : "Try to rest more") : "No data"}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -70,37 +85,24 @@ export default function HealthTrackerPage() {
                   <Droplets className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">6/8</div>
-                  <Progress value={75} className="mt-2" />
+                  <div className="text-2xl font-bold">
+                    {today?.waterGlasses != null ? `${today.waterGlasses}/${WATER_GOAL}` : "—"}
+                  </div>
+                  <Progress
+                    value={today?.waterGlasses != null ? Math.min(100, (today.waterGlasses / WATER_GOAL) * 100) : 0}
+                    className="mt-2"
+                  />
                 </CardContent>
               </Card>
             </div>
 
-            {/* Quick Log */}
             <Card>
               <CardHeader>
                 <CardTitle>Quick Log Entry</CardTitle>
-                <CardDescription>Record how you're feeling today</CardDescription>
+                <CardDescription>Record how you&apos;re feeling today</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="energy">Energy Level (1-10)</Label>
-                    <Input id="energy" type="number" min="1" max="10" placeholder="7" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="mood">Mood</Label>
-                    <Input id="mood" placeholder="Good, tired, anxious..." />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea id="notes" placeholder="Any symptoms, side effects, or observations..." />
-                </div>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Save Entry
-                </Button>
+              <CardContent>
+                <DailyLogForm />
               </CardContent>
             </Card>
           </TabsContent>
@@ -111,44 +113,33 @@ export default function HealthTrackerPage() {
                 <CardTitle>Symptom Tracker</CardTitle>
                 <CardDescription>Log and monitor treatment side effects</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <h3 className="font-medium">Common Symptoms</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <span>Fatigue</span>
-                        <Badge variant="secondary">Mild</Badge>
+                    <h3 className="font-medium">Recent Symptoms</h3>
+                    {symptoms.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No symptoms logged yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {symptoms.map((s) => (
+                          <div key={s.id} className="flex items-center justify-between gap-2 p-3 border rounded-lg">
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{s.name}</p>
+                              <p className="text-xs text-muted-foreground">{dayAndTime(s.loggedAt)}</p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Badge variant={SEVERITY_VARIANT[s.severity]}>{SEVERITY_LABELS[s.severity]}</Badge>
+                              <DeleteButton id={s.id} kind="symptom" />
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <span>Nausea</span>
-                        <Badge variant="outline">None</Badge>
-                      </div>
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <span>Headache</span>
-                        <Badge variant="destructive">Moderate</Badge>
-                      </div>
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <span>Loss of Appetite</span>
-                        <Badge variant="secondary">Mild</Badge>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="space-y-4">
                     <h3 className="font-medium">Add New Symptom</h3>
-                    <div className="space-y-3">
-                      <Input placeholder="Symptom name" />
-                      <select className="w-full p-2 border rounded-md">
-                        <option>Severity Level</option>
-                        <option>None</option>
-                        <option>Mild</option>
-                        <option>Moderate</option>
-                        <option>Severe</option>
-                      </select>
-                      <Textarea placeholder="Additional notes..." />
-                      <Button className="w-full">Log Symptom</Button>
-                    </div>
+                    <SymptomForm />
                   </div>
                 </div>
               </CardContent>
@@ -159,7 +150,9 @@ export default function HealthTrackerPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Vital Signs</CardTitle>
-                <CardDescription>Track important health metrics</CardDescription>
+                <CardDescription>
+                  {latestVitals ? `Last reading: ${dayAndTime(latestVitals.recordedAt)}` : "Track important health metrics"}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -168,8 +161,14 @@ export default function HealthTrackerPage() {
                       <Thermometer className="h-8 w-8 text-primary" />
                       <div className="flex-1">
                         <h3 className="font-medium">Temperature</h3>
-                        <p className="text-2xl font-bold">37°C</p>
-                        <p className="text-sm text-muted-foreground">Normal</p>
+                        <p className="text-2xl font-bold">
+                          {latestVitals?.temperature != null ? `${latestVitals.temperature}°C` : "—"}
+                        </p>
+                        {latestVitals?.temperature != null && (
+                          <p className="text-sm text-muted-foreground">
+                            {latestVitals.temperature >= 38 ? "Fever — contact your care team" : "Normal"}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -177,25 +176,28 @@ export default function HealthTrackerPage() {
                       <Heart className="h-8 w-8 text-primary" />
                       <div className="flex-1">
                         <h3 className="font-medium">Heart Rate</h3>
-                        <p className="text-2xl font-bold">72 BPM</p>
-                        <p className="text-sm text-muted-foreground">Resting</p>
+                        <p className="text-2xl font-bold">
+                          {latestVitals?.heartRate != null ? `${latestVitals.heartRate} BPM` : "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-4 p-4 border rounded-lg">
+                      <Gauge className="h-8 w-8 text-primary" />
+                      <div className="flex-1">
+                        <h3 className="font-medium">Blood Pressure</h3>
+                        <p className="text-2xl font-bold">
+                          {latestVitals?.systolic != null && latestVitals?.diastolic != null
+                            ? `${latestVitals.systolic}/${latestVitals.diastolic}`
+                            : "—"}
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     <h3 className="font-medium">Log New Reading</h3>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input placeholder="Temperature" />
-                        <Input placeholder="Heart Rate" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input placeholder="Blood Pressure (Sys)" />
-                        <Input placeholder="Blood Pressure (Dia)" />
-                      </div>
-                      <Button className="w-full">Save Vitals</Button>
-                    </div>
+                    <VitalsForm />
                   </div>
                 </div>
               </CardContent>
@@ -206,34 +208,28 @@ export default function HealthTrackerPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Health History</CardTitle>
-                <CardDescription>View your tracking history and trends</CardDescription>
+                <CardDescription>Your last {history.length || ""} daily entries</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-medium">Today, 2:30 PM</h3>
-                      <p className="text-sm text-muted-foreground">Energy: 7/10, Mood: Good, Mild fatigue</p>
-                    </div>
-                    <Badge variant="secondary">Complete</Badge>
+                {history.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Your daily entries will appear here.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {history.map((h) => (
+                      <div key={h.id} className="flex items-center justify-between gap-4 p-4 border rounded-lg">
+                        <div className="min-w-0">
+                          <h3 className="font-medium">{dayAndTime(h.loggedAt)}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Energy: {h.energy}/10, Mood: {MOOD_LABELS[h.mood]}
+                            {h.sleepHours != null && `, Sleep: ${h.sleepHours}h`}
+                          </p>
+                          {h.notes && <p className="text-sm mt-1 line-clamp-2">{h.notes}</p>}
+                        </div>
+                        <DeleteButton id={h.id} kind="log" />
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-medium">Yesterday, 9:15 AM</h3>
-                      <p className="text-sm text-muted-foreground">Energy: 5/10, Mood: Tired, Moderate nausea</p>
-                    </div>
-                    <Badge variant="secondary">Complete</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-medium">2 days ago, 11:45 AM</h3>
-                      <p className="text-sm text-muted-foreground">Energy: 8/10, Mood: Great, No symptoms</p>
-                    </div>
-                    <Badge variant="secondary">Complete</Badge>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
