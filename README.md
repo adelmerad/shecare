@@ -1,60 +1,69 @@
 # 💗 SheCare — A Digital Companion for Women Battling Breast Cancer
 
 ![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white)
+![Auth.js](https://img.shields.io/badge/Auth.js-v5-7C3AED)
+![Tests](https://img.shields.io/badge/tests-Vitest-6E9F18?logo=vitest&logoColor=white)
 
-Built at **Startup Weekend Algiers 2025** — from idea to prototype and pitch in one weekend.
+SheCare started at **Startup Weekend Algiers 2025** as a frontend prototype. **v2** turns it into a complete full-stack application: real accounts, a PostgreSQL database, and every page backed by live data.
 
 ## 🧩 The Problem
 
 Women going through breast cancer treatment have to juggle appointments, symptoms, nutrition and their mental health — often alone, with information scattered everywhere.
 
-## 💡 Our Solution
+## ✨ Features
 
-SheCare brings everything into one place:
+| Module | What you can do |
+|--------|-----------------|
+| 🔐 **Accounts** | Sign up, sign in, change password, export all your data (JSON), delete your account |
+| 📊 **Dashboard** | Treatment days, wellness score trend, next appointment, treatment cycle progress, recent activity — all computed from your data |
+| 🩺 **Health tracker** | Daily check-in (energy, mood, sleep, water), symptom log with severity, vital signs, full history |
+| 🧘 **Wellness hub** | Guided meditation, breathing and music sessions, private journal with prompts, weekly stats and day streak |
+| 💬 **Community** | Share stories by category, hearts, comments, pagination — with an option to post anonymously |
+| 👩‍⚕️ **Consultations** | Book specialists by video, phone or chat; slots computed from opening hours; double-booking prevented; cancel upcoming appointments |
+| 📚 **Resources** | Searchable library of articles, videos and PDFs, filter by type, article pages |
+| 👤 **Profile** | Personal and medical information, notification and privacy preferences |
 
-- 📊 **Health tracking** — follow symptoms, treatment and daily wellbeing
-- 🥗 **Nutrition guidance** — personalized advice for each stage of treatment
-- 💬 **Mental health support** — journaling and a supportive community space
-- 👩‍⚕️ **Consultations** — connect with specialists
-- 📚 **Resources** — trusted information for every stage of recovery
+## 🏗️ Architecture
 
-## 📱 Pages
-
-| Page | Route |
-|------|-------|
-| Landing page | `/` |
-| Dashboard | `/dashboard` |
-| Health tracker | `/health-tracker` |
-| Wellness & journaling | `/wellness` |
-| Community | `/community` |
-| Consultations | `/consultations` |
-| Resources | `/resources` |
-| Profile | `/profile` |
-
-## 🛠️ Tech Stack
-
-Next.js 14 (App Router) · React 18 · TypeScript · Tailwind CSS 4 · shadcn/ui (Radix UI) · Recharts · React Hook Form + Zod
-
-## 🚀 Getting Started
-
-```bash
-git clone https://github.com/adelmerad/shecare.git
-cd shecare
-npm install
-npm run dev
+```mermaid
+graph LR
+    B[Browser] -->|RSC / Server Actions| N[Next.js 14 App Router]
+    M[Middleware<br/>Auth.js JWT] -->|protects routes| N
+    N --> A[Server Actions<br/>Zod validation]
+    N --> R[Route Handlers<br/>/api/health · /api/me/export]
+    A --> P[Prisma ORM]
+    R --> P
+    P --> DB[(PostgreSQL)]
 ```
 
-Then open http://localhost:3000.
+- **No separate API server**: reads happen in React Server Components, writes go through **Server Actions**.
+- **Every input is validated on the server** with Zod; errors are returned per field and shown in the form.
+- **Authorization is enforced in every query** (`where: { id, userId }`), so a user can never read or modify someone else's records.
+- **Bookings run in a serializable transaction** that checks overlaps for both the specialist and the patient, so two people cannot take the same slot.
+- **Passwords** are hashed with bcrypt (cost 12); the export endpoint never includes the hash.
 
-## 👥 Team
+## 🗄️ Data Model
 
-- **Adel Merad** — [GitHub](https://github.com/adelmerad)
-- **Sarah Attar**
-- **Abdoullah Ishak Bouzourene**
+```mermaid
+erDiagram
+    USER ||--o| MEDICAL_PROFILE : has
+    USER ||--o| PREFERENCES : has
+    USER ||--o{ DAILY_LOG : logs
+    USER ||--o{ SYMPTOM_LOG : logs
+    USER ||--o{ VITAL_READING : records
+    USER ||--o{ JOURNAL_ENTRY : writes
+    USER ||--o{ WELLNESS_SESSION : completes
+    USER ||--o{ POST : shares
+    USER ||--o{ COMMENT : writes
+    USER ||--o{ POST_LIKE : gives
+    POST ||--o{ COMMENT : has
+    POST ||--o{ POST_LIKE : receives
+    USER ||--o{ APPOINTMENT : books
+    SPECIALIST ||--o{ APPOINTMENT : receives
+    RESOURCE
+```
 
----
-
-<p align="center">Built with 💗 at Startup Weekend Algiers 2025</p>
+Deleting a user cascades to all of their data. The full schema is in [`prisma/schema.prisma`](prisma/schema.prisma).
