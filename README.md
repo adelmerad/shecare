@@ -67,3 +67,89 @@ erDiagram
 ```
 
 Deleting a user cascades to all of their data. The full schema is in [`prisma/schema.prisma`](prisma/schema.prisma).
+
+## 🛠️ Tech Stack
+
+**Frontend** — Next.js 14 (App Router) · React 18 · TypeScript · Tailwind CSS 4 · shadcn/ui (Radix UI)
+**Backend** — Server Actions · Route Handlers · Auth.js v5 (credentials, JWT) · Zod · bcrypt
+**Database** — PostgreSQL 16 · Prisma 6 (migrations + seed) · Docker Compose
+**Quality** — Vitest unit tests · strict TypeScript build
+
+## 🚀 Getting Started
+
+Requirements: Node.js 20+, Docker.
+
+```bash
+git clone https://github.com/adelmerad/shecare.git
+cd shecare
+npm install
+
+cp .env.example .env          # then set AUTH_SECRET (npx auth secret)
+npm run db:up                 # start PostgreSQL in Docker (port 5433)
+npm run db:migrate            # create the tables
+npm run db:seed               # specialists, resources and a demo account
+npm run dev
+```
+
+Open http://localhost:3000 and sign in with the demo account:
+
+| Email | Password |
+|-------|----------|
+| `demo@shecare.dz` | `Demo1234` |
+
+> The seed resets specialists, resources and appointments — use it on a development database only.
+
+### Useful scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the development server |
+| `npm run build` | Generate the Prisma client and build for production |
+| `npm test` | Run the unit tests |
+| `npm run db:studio` | Browse the database with Prisma Studio |
+| `npm run db:deploy` | Apply migrations in production |
+
+## 📂 Project Structure
+
+```
+app/
+├── actions/          # Server Actions: auth, health, wellness, community, consultations, profile
+├── api/              # Route handlers: Auth.js, health check, data export
+├── dashboard/ health-tracker/ wellness/ community/ consultations/ resources/ profile/
+├── login/ register/
+lib/
+├── validation.ts     # Zod schemas for every form
+├── booking.ts        # Slot rules and overlap detection
+├── wellness.ts       # Wellness score, streaks, guided session catalog
+├── db.ts session.ts  # Prisma client, auth helpers
+prisma/
+├── schema.prisma     # Data model
+├── migrations/       # SQL migrations
+└── seed.ts           # Demo data
+tests/                # Vitest unit tests
+auth.ts auth.config.ts middleware.ts
+```
+
+## 🧪 Tests
+
+```bash
+npm test
+```
+
+Unit tests cover validation rules, booking slot logic (opening hours, Algerian work week, overlaps, booking window), wellness score and streak calculation, and profile completion.
+
+## 👥 Team
+
+Startup Weekend Algiers 2025 prototype:
+
+- **Adel Merad** — [GitHub](https://github.com/adelmerad)
+- **Sarah Attar**
+- **Abdoullah Ishak Bouzourene**
+
+Full-stack v2 (backend, database, authentication): **Adel Merad**
+
+---
+
+<p align="center">Built with 💗 — started at Startup Weekend Algiers 2025</p>
+
+> SheCare provides general information and tracking tools. It does not replace advice from your medical team.
