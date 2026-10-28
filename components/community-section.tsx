@@ -47,7 +47,7 @@ export function CommunitySection() {
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={testimonial.avatar || "/placeholder.svg"} alt={testimonial.name} />
+                    <AvatarImage src={testimonial.avatar} alt={testimonial.name} />
                     <AvatarFallback>
                       {testimonial.name
                         .split(" ")
