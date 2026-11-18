@@ -4,3 +4,6 @@ node_modules/
 .env*.local
 coverage/
 *.tsbuildinfo
+
+# Private business documents
+SheCare_Startup_Idea_detailed*.pdf
